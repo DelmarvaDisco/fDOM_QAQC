@@ -1,0 +1,405 @@
+---
+title: "fDOM data correction examples"
+author: "James Maze"
+date: "12/14/2020"
+output: html_document
+Example data sets used: ND-SW from 9/6 to 10/29 and DK SW from 
+---
+
+## 1. Load packages and working directory
+
+I didn't show this chunk for brevity's sake, but I used the following packages:
+
+tidyverse, lubridate, zoo, xts, dygraphs, htmlwidgets, rmarkdown
+```{r include=FALSE}
+
+library("tidyverse")
+library("lubridate")
+library("zoo")
+library("xts")
+library("dygraphs")
+library("htmlwidgets")
+library("rmarkdown")
+
+setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC")
+
+```
+
+## 2 Organize the EXO Files
+
+#### 2.1  Read in the EXO files
+
+The KorEXO formatting makes the files really difficult to read in. I need to streamline this at some point, but for now, I'm removing the header in excel. That's why these file names are "no_head.csv".
+
+Also, I read the files in separately for this vs one function running through a folder, because I feel like it gives me more flexibility while toying with different QAQC options. 
+
+When I read the data in, I do three things:
+  
+  1. Rename the columns so they are easier for me to work with 
+  
+  2. Add a column for Flagging, which I automatically designate as 0 (i.e. no Flag). Through out the QAQC, data will get flagged. 
+  
+  3. Select the columns of interest. I drop three variables that we don't measure. 
+  
+I combine all the files using rbind. 
+
+
+```{r}
+# DK SW from Sept 6 to Sept 19
+DK_SW_EXO_20200919_raw <- read_csv("Data_Raw/DK_SW_fDOM_20200919_no_head.csv") %>% 
+  rename("Date" = `Date (MM/DD/YYYY)`, 
+         "Time" = `Time (HH:mm:ss)`, 
+         "fDOM_QSU" = `fDOM QSU`, 
+         "Turb_FNU" = `Turbidity FNU`,
+         "Batt_V" = `Battery V`) %>% 
+  add_column(Flag = 0) %>% 
+  select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
+
+# DK SW from Sept 19 to Oct 26
+DK_SW_EXO_20201026_raw <- read_csv("Data_Raw/DK_SW_fDOM_20201026_no_head.csv") %>% 
+  rename("Date" = `Date (MM/DD/YYYY)`, 
+         "Time" = `Time (HH:mm:ss)`, 
+         "fDOM_QSU" = `fDOM QSU`, 
+         "Turb_FNU" = `Turbidity FNU`,
+         "Batt_V" = `Battery V`) %>% 
+  add_column(Flag = 0) %>% 
+  select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
+
+#ND from Sep 6th through Sep 19th
+ND_SW_EXO_20200919_raw <- read_csv("Data_Raw/ND_SW_fDOM_20200919_no_head.csv") %>% 
+  rename("Date" = `Date (MM/DD/YYYY)`, 
+         "Time" = `Time (HH:mm:ss)`, 
+         "fDOM_QSU" = `fDOM QSU`, 
+         "Turb_FNU" = `Turbidity FNU`,
+         "Batt_V" = `Battery V`) %>% 
+  add_column(Flag = 0) %>% 
+  select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
+
+#ND from Sep 19th to October 9th 
+ND_SW_EXO_20201009_raw <- read_csv("Data_Raw/ND_SW_fDOM_20201009_no_head.csv") %>% 
+  rename("Date" = `Date (MM/DD/YYYY)`, 
+         "Time" = `Time (HH:mm:ss)`, 
+         "fDOM_QSU" = `fDOM QSU`, 
+         "Turb_FNU" = `Turbidity FNU`,
+         "Batt_V" = `Battery V`) %>% 
+  add_column(Flag = 0) %>% 
+  select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
+
+#ND from October 9th to October 26th
+ND_SW_EXO_20201026_raw <- read_csv("Data_Raw/ND_SW_fDOM_20201026_no_head.csv") %>% 
+  rename("Date" = `Date (MM/DD/YYYY)`, 
+         "Time" = `Time (HH:mm:ss)`, 
+         "fDOM_QSU" = `fDOM QSU`, 
+         "Turb_FNU" = `Turbidity FNU`,
+         "Batt_V" = `Battery V`) %>% 
+  add_column(Flag = 0) %>% 
+  select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
+
+
+# Combine all of the files
+EXO_raw <- rbind(DK_SW_EXO_20200919_raw, DK_SW_EXO_20201026_raw, ND_SW_EXO_20201009_raw, ND_SW_EXO_20200919_raw, ND_SW_EXO_20201026_raw)
+
+```
+
+#### 2.2 Convert the timestamp on the EXO files
+
+In this chunk, I paste the Date and Time columns into a single column. Then I change the format to a POSIXct. Lastly, I filter out the QSU values less than 20. 
+
+```{r}
+EXO_raw_timestamped <- EXO_raw %>% 
+  mutate(Date_Time_EST = paste(Date, Time)) %>%
+  mutate(Date_Time_EST = mdy_hms(Date_Time_EST, 
+                                 tz = "US/Eastern")) %>% 
+  #Filtering out the wackiest values before hand
+  filter(fDOM_QSU > 20) 
+
+head(EXO_raw_timestamped)
+
+```
+## 3. Temperature Correction 
+
+#### 3.1 Inspect YSI's Temperature Correction 
+
+The table relates temperature to florescence for a 300 ppb QSU standard (Source  YSI Manual). According to YSI, 22 degrees C is considered the reference temperature. As you can see, there is a clear linear relationship (r^2 = 0.9999).
+
+For the 300 ppb standard, the formula from linear regression is:
+
+**In y = mx + b: QSU = -1.364161(Deg C - 22) + 330.044056**
+
+**In point-slope: QSU - 300 = -1.364161(Deg C - 22)**
+
+
+```{r}
+#Read the table into R
+(Temp_QSU_slope <- read_csv("YSI_Temp_QSU_corr.csv")) 
+
+#Plot the the points
+(Temp_QSU_plot <- ggplot(data = Temp_QSU_slope, 
+        mapping = aes(x = Deg_C, 
+                      y = fDOM_QSU)) +
+    geom_point() +
+    theme_bw() +
+    labs(title = "QSU and Temperature (Standard = 300 ppb @ 22C)"))
+
+#Do a quick linear regression (r^2 = 0.9999)
+Temp_QSU_linear_reg <- lm(formula = fDOM_QSU ~ Deg_C, data = Temp_QSU_slope)
+summary(Temp_QSU_linear_reg)
+
+```
+
+#### 3.2 Read in the co-located temperature sensors (From PME miniDOTs)
+
+Not very smooth, but it gets the job done. Since the PME file has a row of units below the column name, its easier to slice and rename in R. Like the EXO files, I need to smooth alot of wrinkles. For the purpose of fDOM corrections, I only keep the time (Date time) and temperature (double) column. 
+
+Once again, I read the files in individually, because I feel like it grants more flexibility, while I test different things out. 
+
+```{r}
+#Read the PME file and select the columns
+
+# DK SW from Sep 6 to Sep 19
+DK_SW_PME_20200919_trimmed <- read_delim("Data_Raw/DK_SW_PME_20200906_20200919.txt",
+                             delim = ",",
+                             skip = 9, 
+                             col_names = FALSE) %>% 
+  select(c(X3, X5)) %>% 
+  rename(Date_Time_EST = X3, Temp_C = X5) %>% 
+  add_column("Site Name" = "DK")
+
+#DK SW from Sep 19 to Oct 26
+DK_SW_PME_20201026_trimmed <- read_delim("Data_Raw/DK_SW_PME_20200919_20201026.txt",
+                             delim = ",",
+                             skip = 9, 
+                             col_names = FALSE) %>% 
+  select(c(X3, X5)) %>% 
+  rename(Date_Time_EST = X3, Temp_C = X5) %>% 
+  add_column("Site Name" = "DK")
+
+#ND SW from Sep 6 to Sep 19
+ND_SW_PME_20200919_trimmed <- read_delim("Data_Raw/ND_SW_PME_20200906_20200919.txt",
+                             delim = ",",
+                             skip = 9, 
+                             col_names = FALSE) %>% 
+  select(c(X3, X5)) %>% 
+  rename(Date_Time_EST = X3, Temp_C = X5) %>% 
+  add_column("Site Name" = "ND") %>% 
+  mutate("Date_Time_EST" = ymd_hms(Date_Time_EST, 
+                                   tz = "US/Eastern")) %>% 
+#Correcting the time interval. For the MiniDOTs, you can't set a start time like you can with HOBO, so its really hard to get them to start on the hour (e.g. 14:00 vs 14:01). The other files were 1 minute off, but this one was three minutes off. I Subtracted two minutes. Later on, I will subtract one minute from all the files.  
+  mutate("Date_Time_EST" = Date_Time_EST - 120) %>% 
+#Change back into character to rbind with the rest of the files. 
+  mutate("Date_Time_EST" = as.character(Date_Time_EST))
+
+
+#ND SW from Sep 19 to Oct 26
+ND_SW_PME_20201026_trimmed <- read_delim("Data_Raw/ND_SW_PME_20200919_20201026.txt",
+                             delim = ",",
+                             skip = 9, 
+                             col_names = FALSE) %>% 
+  select(c(X3, X5)) %>% 
+  rename(Date_Time_EST = X3, Temp_C = X5) %>% 
+  add_column("Site Name" = "ND") 
+  
+
+  
+
+
+#Merge the PME files
+PME_trimmed <- rbind(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed) %>% 
+#Converts the Temp_C column to numeric and the Date to POSIXCT.
+  mutate("Temp_C" = as.numeric(Temp_C),
+         "Date_Time_EST" = ymd_hms(Date_Time_EST, 
+                                   tz = "US/Eastern"))
+
+
+
+head(PME_trimmed)
+
+```
+
+#### 3.3 Join the co-located temp sensors to the fDOM data
+
+Unfortunately, the MiniDOTs started on a 1 minute delay. So I had to bump the timestamps back 1 minute (e.g. Temp at 12:45 was actually measured at 12:46). For the purpose of temperature correction, this should be okay. I used an inner join, so times that didn't have an fDOM **AND** a temperature measurement were dropped.
+
+```{r}
+# Subtracted 1 minute from the time stamps in order to merge values. Now the measurement times are every 15 minutes on the hour. 
+PME_ready <- PME_trimmed %>% 
+  mutate("Date_Time_EST" = Date_Time_EST - 60)
+
+#Used an inner join by timestamp and Site Name
+EXO_PME_raw_timestamped <- inner_join(PME_ready, 
+                                      EXO_raw_timestamped, 
+                                      by = c("Date_Time_EST", "Site Name"))
+
+#Plot temperature at the different sites to make sure the join worked properly. 
+(ggplot(data = EXO_PME_raw_timestamped,
+        mapping = aes(x = Date_Time_EST, 
+                      y = Temp_C,
+                      color = `Site Name`))+
+    geom_line() +
+    theme_bw())
+
+head(EXO_PME_raw_timestamped)
+
+```
+
+#### 3.4 Apply the linear temp correction
+
+Definitely be vigilant for algebra mistakes that I may have made. 
+
+1. To start, I used the point-slope equation from 3.1, where m = -1.364161.
+
+**Equation 1) QSU Signal - 300 = m(T-22)**
+
+2. Since the relationship from the YSI manual is for a 300 ppb standard, I need to put it in terms of percent error. Otherwise, we can't apply it to real data. 
+
+% Error = (QSU Signal - QSU Actual)/QSU Actual * 100
+
+Since there was a 300 ppb standard, QSU Actual = 300, which we can plug in.
+
+**Equation 2) % Error = (QSU Signal - 300)/300 * 100**
+
+
+3. Use substitution for Equations 1 and 2...
+
+**% Error = (QSU Signal - 300)/300 * 100 = m(T - 22) * 100/300 **
+
+4. Simplify to get...
+
+**% Error = m/3(T -22)**
+
+5. Once we have the percent error attributed to Temperature, we correct the fDOM data with...
+
+**QSU_corrected = fDOM_QSU + (% Error/100 * fDOM_QSU)**
+
+
+The following chunk of code runs the math generating two new columns for the Temp % Error and the temperature corrected fDOM
+```{r}
+m <- -1.364161
+
+fDOM_Temp_corr <- EXO_PME_raw_timestamped %>% 
+  mutate("Temp_%_Error" = m/3 * (Temp_C - 22)) %>% 
+  mutate("QSU_temp_corrected" = fDOM_QSU + (`Temp_%_Error`/100 * fDOM_QSU))  
+
+head(fDOM_Temp_corr)
+
+```
+#### 3.5 Compare the temperature corrected data to the other data. 
+```{r}
+#This code just manipulates the data so that it can be plotted with the dygraph package
+DK_fDOM_Temp_compare <- fDOM_Temp_corr %>% 
+  filter(`Site Name` == "DK") %>% 
+  select(fDOM_QSU, QSU_temp_corrected, Date_Time_EST) 
+
+#Change to an xts
+DK_fDOM_Temp_compare <- DK_fDOM_Temp_compare %>% 
+  xts(order.by = DK_fDOM_Temp_compare$Date_Time_EST)
+
+#This code makes the graph
+(dygraph(DK_fDOM_Temp_compare, 
+         main = "Temp correction at DK",
+         ylab = "fDOM (QSU)") %>%
+   dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
+   dyRangeSelector())
+
+#This code just manipulates the data so that it can be plotted with the dygraph package
+ND_fDOM_Temp_compare <- fDOM_Temp_corr %>% 
+  filter(`Site Name` == "ND") %>% 
+  select(fDOM_QSU, QSU_temp_corrected, Date_Time_EST) 
+
+#Change to an xts
+ND_fDOM_Temp_compare <- ND_fDOM_Temp_compare %>% 
+  xts(order.by = ND_fDOM_Temp_compare$Date_Time_EST)
+
+#This code makes the graph
+(dygraph(ND_fDOM_Temp_compare, 
+         main = "Temp correction at ND",
+         ylab = "fDOM (QSU)") %>%
+   dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
+   dyRangeSelector())
+
+```
+
+## 4. Fouling Correction
+
+For DK-SW, there was not evidence of fouling. The signal was 129.52 QSU at the end of the first deployment (Sep 6th - Sep 19th) and 129.56 QSU at the beginning of the second deployment (Sep 19th - Oct 29th). 
+
+ND-SW was a different story... It appears the fouling dampens the QSU signal, because the value is higher post-clean. The USGS manual has a good approach for this. (https://pubs.usgs.gov/tm/2006/tm1D3/pdf/TM1D3.pdf) For more information, see Figure 8 on pg 26 and equation 5 on pg 32. 
+
+The major assumption for the fouling correction is that the change in fouling is approximately linear (i.e. **Fouling(t) = t X Fouling Rate**)
+
+#### 4.1 Calculate the total fouling that occured in each period between cleanings. This is found by:
+
+Total fouling = QSU Post Clean - QSU Pre Clean. 
+
+```{r}
+#Just trying to see if it works, but the math and timestamps has gotten really hard...
+
+#The difference between pre and post wiping September 19th
+total_fouling <- 107.02 - 84.13
+
+#The total fouling correction. Total fouling divided by the pre wipe value. This is the proportional error caused by fouling throughout the deployment. 
+total_fouling_proportional <- (total_fouling/84.13)
+
+#The fouling correction factor (fouling/min) divided by the elapsed time in minutes from September 12th at 12:00 pm to September 19th at 1:30 pm.(fouling appears to show up on Sept 12th). 
+
+fouling_rate_min <- (total_fouling_proportional/10170)
+
+#Add a column for the correction factor (CF) for each measurement. At t = 0 on Sept 12th, the correction coefficient = 1. At t = 10170 on September 19th, the correction coefficient = 1.2720789. 
+# No clue how to do this in R, but this is the general idea. Will probably be easiest to do this with Unix timestamps????
+
+#fDOM_temp_foul_corr <- fDOM_Temp_corr %>% 
+  #mutate("CF" = ((Date_Time_EST - "2020-09-12 12:00")) * fouling_rate_min + 1) %>% 
+#Lastly, the corrected data will be...
+  #mutate("QSU_temp_fouling_corr" = QSU_temp_corrected * CF)
+
+#The most difficult aspect of this will be automating, this piece-wise approach to data QAQC...
+
+```
+
+## 5. Using the roll mean function to dampen noise. 
+
+It may be worthwhile dropping, or flagging values that deviate too much from the rolling mean. The process for QAQC could be using the roll mean function, and plotting the residuals. Based on the difference between actual values and roll mean, we could set a threshold to dampen noise. 
+```{r}
+
+DK_SW_EXO_roll <- fDOM_Temp_corr %>% 
+  filter(`Site Name` == "DK") 
+
+#Roll mean function from zoo package
+DK_SW_EXO_roll <- DK_SW_EXO_roll %>% 
+  add_column("temp_corrected_roll" = rollmean(DK_SW_EXO_roll$QSU_temp_corrected, 
+                                      8,
+                                      fill = NA, 
+                                      align = "center"))
+
+# Puts the data in xts format for the dygraphs package             
+rolling_comp <- DK_SW_EXO_roll %>% 
+  select(Date_Time_EST, QSU_temp_corrected, temp_corrected_roll, ) %>% 
+  xts(order.by = DK_SW_EXO_roll$Date_Time_EST)
+
+(dygraph(rolling_comp, main = "Comparing rolling average to raw fDOM at DK SW") %>% 
+  dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
+  dyRangeSelector())
+
+
+```
+## 6. Using the Spike Flag function from Graham.
+
+Could be another option for dampening noise. 
+```{r}
+flag_spikes <- function(x, q = 1) {
+
+  med <- median(x, na.rm = TRUE)
+  mad <- mad(x, na.rm = TRUE)
+
+  low <- med - q * mad
+  high <- med + q * mad
+
+  dplyr::if_else(!dplyr::between(x, low, high), 1L, 0L)
+}
+
+```
+
+```{r}
+
+
+```
