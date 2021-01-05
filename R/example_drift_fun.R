@@ -8,7 +8,7 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Function ----------------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-fun<-function(df, #Dataframe with data and data cols 
+fun <- function(df, #Dataframe with data and data cols 
               start, #Date and time when to start linear correction
               end, #Date and time when end linear correction
               cleaned #Date and time when the sensor was cleaned
@@ -55,7 +55,7 @@ fun<-function(df, #Dataframe with data and data cols
 # Apply function ---------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Prep dataframe
-df<-fDOM_Temp_corr %>% 
+df<-EXO_PME_raw %>% 
   #Filter to one site
   filter(`Site Name`=='ND') %>% 
   #Create cols of interest
@@ -67,9 +67,9 @@ df<-fDOM_Temp_corr %>%
   select(Timestamp,value, drift_corr)
 
 #Define dates of interest
-start<-mdy_hm("9-12-2020 11:00")
-end<-mdy_hm("9-19-2020 13:30")
-cleaned<-mdy_hm("9-19-2020 14:30")
+start<-mdy_hm("9-19-2020 13:30")
+end<-mdy_hm("10-9-2020 12:45")
+cleaned<-mdy_hm("10-9-2020 16:00")
 
 #run function
 temp<-fun(df, start, end, cleaned)

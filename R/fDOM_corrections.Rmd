@@ -3,7 +3,7 @@ title: "fDOM data correction examples"
 author: "James Maze"
 date: "12/14/2020"
 output: html_document
-Example data sets used: ND-SW from 9/6 to 10/29 and DK SW from 
+Example data sets used: ND-SW from 9/6 to 10/29 and DK SW from 9/6 to 10/29
 ---
 
 ## 1. Load packages and working directory
@@ -20,8 +20,6 @@ library("xts")
 library("dygraphs")
 library("htmlwidgets")
 library("rmarkdown")
-
-setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC")
 
 ```
 
@@ -44,7 +42,11 @@ When I read the data in, I do three things:
 I combine all the files using rbind. 
 
 
-```{r}
+```{r include=FALSE}
+
+setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC_DD")
+
+
 # DK SW from Sept 6 to Sept 19
 DK_SW_EXO_20200919_raw <- read_csv("Data_Raw/DK_SW_fDOM_20200919_no_head.csv") %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
@@ -99,6 +101,9 @@ ND_SW_EXO_20201026_raw <- read_csv("Data_Raw/ND_SW_fDOM_20201026_no_head.csv") %
 # Combine all of the files
 EXO_raw <- rbind(DK_SW_EXO_20200919_raw, DK_SW_EXO_20201026_raw, ND_SW_EXO_20201009_raw, ND_SW_EXO_20200919_raw, ND_SW_EXO_20201026_raw)
 
+#Remove the individual files after data is binded
+rm(DK_SW_EXO_20200919_raw, DK_SW_EXO_20201026_raw, ND_SW_EXO_20201009_raw, ND_SW_EXO_20200919_raw, ND_SW_EXO_20201026_raw)
+
 ```
 
 #### 2.2 Convert the timestamp on the EXO files
@@ -114,6 +119,7 @@ EXO_raw_timestamped <- EXO_raw %>%
   filter(fDOM_QSU > 20) 
 
 head(EXO_raw_timestamped)
+rm(EXO_raw)
 
 ```
 ## 3. Temperature Correction 
@@ -130,7 +136,9 @@ For the 300 ppb standard, the formula from linear regression is:
 
 
 ```{r}
-#Read the table into R
+
+setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC_DD")
+#Read the table
 (Temp_QSU_slope <- read_csv("YSI_Temp_QSU_corr.csv")) 
 
 #Plot the the points
@@ -153,8 +161,10 @@ Not very smooth, but it gets the job done. Since the PME file has a row of units
 
 Once again, I read the files in individually, because I feel like it grants more flexibility, while I test different things out. 
 
-```{r}
+```{r include=FALSE}
 #Read the PME file and select the columns
+
+setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC_DD")
 
 # DK SW from Sep 6 to Sep 19
 DK_SW_PME_20200919_trimmed <- read_delim("Data_Raw/DK_SW_PME_20200906_20200919.txt",
@@ -200,8 +210,6 @@ ND_SW_PME_20201026_trimmed <- read_delim("Data_Raw/ND_SW_PME_20200919_20201026.t
   add_column("Site Name" = "ND") 
   
 
-  
-
 
 #Merge the PME files
 PME_trimmed <- rbind(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed) %>% 
@@ -210,9 +218,9 @@ PME_trimmed <- rbind(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_
          "Date_Time_EST" = ymd_hms(Date_Time_EST, 
                                    tz = "US/Eastern"))
 
-
-
 head(PME_trimmed)
+
+rm(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed)
 
 ```
 
@@ -226,19 +234,20 @@ PME_ready <- PME_trimmed %>%
   mutate("Date_Time_EST" = Date_Time_EST - 60)
 
 #Used an inner join by timestamp and Site Name
-EXO_PME_raw_timestamped <- inner_join(PME_ready, 
+EXO_PME_raw <- inner_join(PME_ready, 
                                       EXO_raw_timestamped, 
                                       by = c("Date_Time_EST", "Site Name"))
 
 #Plot temperature at the different sites to make sure the join worked properly. 
-(ggplot(data = EXO_PME_raw_timestamped,
+(ggplot(data = EXO_PME_raw,
         mapping = aes(x = Date_Time_EST, 
                       y = Temp_C,
                       color = `Site Name`))+
     geom_line() +
     theme_bw())
 
-head(EXO_PME_raw_timestamped)
+head(EXO_PME_raw)
+rm(PME_ready, PME_trimmed, EXO_raw_timestamped)
 
 ```
 
@@ -273,45 +282,46 @@ Since there was a 300 ppb standard, QSU Actual = 300, which we can plug in.
 
 
 The following chunk of code runs the math generating two new columns for the Temp % Error and the temperature corrected fDOM
-```{r}
+```{r include=FALSE}
 m <- -1.364161
 
-fDOM_Temp_corr <- EXO_PME_raw_timestamped %>% 
+EXO_PME_raw <- EXO_PME_raw %>% 
   mutate("Temp_%_Error" = m/3 * (Temp_C - 22)) %>% 
-  mutate("QSU_temp_corrected" = fDOM_QSU + (`Temp_%_Error`/100 * fDOM_QSU))  
+  mutate("QSU_temp_corrected" = fDOM_QSU + (`Temp_%_Error`/100 * fDOM_QSU)) %>% 
+  mutate(temp_corr = 0)
 
-head(fDOM_Temp_corr)
+head(EXO_PME_raw)
 
 ```
 #### 3.5 Compare the temperature corrected data to the other data. 
 ```{r}
 #This code just manipulates the data so that it can be plotted with the dygraph package
-DK_fDOM_Temp_compare <- fDOM_Temp_corr %>% 
+EXO_PME_raw_DK_xts <- EXO_PME_raw %>% 
   filter(`Site Name` == "DK") %>% 
   select(fDOM_QSU, QSU_temp_corrected, Date_Time_EST) 
 
 #Change to an xts
-DK_fDOM_Temp_compare <- DK_fDOM_Temp_compare %>% 
-  xts(order.by = DK_fDOM_Temp_compare$Date_Time_EST)
+EXO_PME_raw_DK_xts <- EXO_PME_raw_DK_xts %>% 
+  xts(order.by = EXO_PME_raw_DK_xts$Date_Time_EST)
 
 #This code makes the graph
-(dygraph(DK_fDOM_Temp_compare, 
+(dygraph(EXO_PME_raw_DK_xts, 
          main = "Temp correction at DK",
          ylab = "fDOM (QSU)") %>%
    dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
    dyRangeSelector())
 
 #This code just manipulates the data so that it can be plotted with the dygraph package
-ND_fDOM_Temp_compare <- fDOM_Temp_corr %>% 
+EXO_PME_raw_ND_xts <- EXO_PME_raw %>% 
   filter(`Site Name` == "ND") %>% 
   select(fDOM_QSU, QSU_temp_corrected, Date_Time_EST) 
 
 #Change to an xts
-ND_fDOM_Temp_compare <- ND_fDOM_Temp_compare %>% 
-  xts(order.by = ND_fDOM_Temp_compare$Date_Time_EST)
+EXO_PME_raw_ND_xts <- EXO_PME_raw_ND_xts %>% 
+  xts(order.by = EXO_PME_raw_ND_xts$Date_Time_EST)
 
 #This code makes the graph
-(dygraph(ND_fDOM_Temp_compare, 
+(dygraph(EXO_PME_raw_ND_xts, 
          main = "Temp correction at ND",
          ylab = "fDOM (QSU)") %>%
    dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
@@ -332,17 +342,34 @@ The major assumption for the fouling correction is that the change in fouling is
 Total fouling = QSU Post Clean - QSU Pre Clean. 
 
 ```{r}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #Just trying to see if it works, but the math and timestamps has gotten really hard...
 
 #The difference between pre and post wiping September 19th
-total_fouling <- 107.02 - 84.13
+#total_fouling <- 107.02 - 84.13
 
 #The total fouling correction. Total fouling divided by the pre wipe value. This is the proportional error caused by fouling throughout the deployment. 
-total_fouling_proportional <- (total_fouling/84.13)
+#total_fouling_proportional <- (total_fouling/84.13)
 
 #The fouling correction factor (fouling/min) divided by the elapsed time in minutes from September 12th at 12:00 pm to September 19th at 1:30 pm.(fouling appears to show up on Sept 12th). 
 
-fouling_rate_min <- (total_fouling_proportional/10170)
+#fouling_rate_min <- (total_fouling_proportional/10170)
 
 #Add a column for the correction factor (CF) for each measurement. At t = 0 on Sept 12th, the correction coefficient = 1. At t = 10170 on September 19th, the correction coefficient = 1.2720789. 
 # No clue how to do this in R, but this is the general idea. Will probably be easiest to do this with Unix timestamps????
@@ -361,7 +388,7 @@ fouling_rate_min <- (total_fouling_proportional/10170)
 It may be worthwhile dropping, or flagging values that deviate too much from the rolling mean. The process for QAQC could be using the roll mean function, and plotting the residuals. Based on the difference between actual values and roll mean, we could set a threshold to dampen noise. 
 ```{r}
 
-DK_SW_EXO_roll <- fDOM_Temp_corr %>% 
+DK_SW_EXO_roll <- EXO_PME_raw %>% 
   filter(`Site Name` == "DK") 
 
 #Roll mean function from zoo package
@@ -372,11 +399,11 @@ DK_SW_EXO_roll <- DK_SW_EXO_roll %>%
                                       align = "center"))
 
 # Puts the data in xts format for the dygraphs package             
-rolling_comp <- DK_SW_EXO_roll %>% 
+DK_SW_EXO_roll <- DK_SW_EXO_roll %>% 
   select(Date_Time_EST, QSU_temp_corrected, temp_corrected_roll, ) %>% 
   xts(order.by = DK_SW_EXO_roll$Date_Time_EST)
 
-(dygraph(rolling_comp, main = "Comparing rolling average to raw fDOM at DK SW") %>% 
+(dygraph(DK_SW_EXO_roll, main = "Comparing rolling average to raw fDOM at DK SW") %>% 
   dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
   dyRangeSelector())
 
