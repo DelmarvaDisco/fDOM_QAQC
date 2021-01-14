@@ -46,8 +46,6 @@ I combine all the files using rbind.
 
 ```{r include=FALSE}
 
-
-
 # DK SW from Sept 6 to Sept 19
 DK_SW_EXO_20200919_raw <- read_csv(paste0(data_dir,"/DK_SW_fDOM_20200919_no_head.csv")) %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
@@ -190,13 +188,7 @@ ND_SW_PME_20200919_trimmed <- read_delim(paste0(data_dir,"/ND_SW_PME_20200906_20
                              col_names = FALSE) %>% 
   select(c(X3, X5)) %>% 
   rename(Date_Time_EST = X3, Temp_C = X5) %>% 
-  add_column("Site Name" = "ND") %>% 
-  mutate("Date_Time_EST" = ymd_hms(Date_Time_EST, 
-                                   tz = "US/Eastern")) %>% 
-#Correcting the time interval. For the MiniDOTs, you can't set a start time like you can with HOBO, so its really hard to get them to start on the hour (e.g. 14:00 vs 14:01). The other files were 1 minute off, but this one was three minutes off. I Subtracted two minutes. Later on, I will subtract one minute from all the files.  
-  mutate("Date_Time_EST" = Date_Time_EST - 120) %>% 
-#Change back into character to rbind with the rest of the files. 
-  mutate("Date_Time_EST" = as.character(Date_Time_EST))
+  add_column("Site Name" = "ND") 
 
 
 #ND SW from Sep 19 to Oct 26
@@ -211,13 +203,13 @@ ND_SW_PME_20201026_trimmed <- read_delim(paste0(data_dir,"/ND_SW_PME_20200919_20
 
 
 #Merge the PME files
-PME_trimmed <- rbind(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed) %>% 
+PME_ready <- rbind(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed) %>% 
 #Converts the Temp_C column to numeric and the Date to POSIXCT.
   mutate("Temp_C" = as.numeric(Temp_C),
          "Date_Time_EST" = ymd_hms(Date_Time_EST, 
                                    tz = "US/Eastern"))
 
-head(PME_trimmed)
+head(PME_ready)
 
 rm(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed)
 
@@ -228,14 +220,14 @@ rm(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_tr
 Unfortunately, the MiniDOTs started on a 1 minute delay. So I had to bump the timestamps back 1 minute (e.g. Temp at 12:45 was actually measured at 12:46). For the purpose of temperature correction, this should be okay. I used an inner join, so times that didn't have an fDOM **AND** a temperature measurement were dropped.
 
 ```{r}
-# Subtracted 1 minute from the time stamps in order to merge values. Now the measurement times are every 15 minutes on the hour. 
-PME_ready <- PME_trimmed %>% 
-  mutate("Date_Time_EST" = Date_Time_EST - 60)
+# PME start times were wonky, rounded to the the nearest 15 min interval. 
+PME_ready <- PME_ready %>% 
+  mutate("Date_Time_EST" = round_date(Date_Time_EST, "15 minute"))
 
 #Used an inner join by timestamp and Site Name
 EXO_PME_raw <- inner_join(PME_ready, 
-                                      EXO_raw_timestamped, 
-                                      by = c("Date_Time_EST", "Site Name"))
+                          EXO_raw_timestamped, 
+                          by = c("Date_Time_EST", "Site Name"))
 
 #Plot temperature at the different sites to make sure the join worked properly. 
 (ggplot(data = EXO_PME_raw,
@@ -340,8 +332,38 @@ The major assumption for the fouling correction is that the change in fouling is
 
 Total fouling = QSU Post Clean - QSU Pre Clean. 
 
-```{r}
+Fouling Rate = (Total Fouling)/Elapsed Time
 
+Fouling Correction(t) = Fouling Rate * t
+
+```{r}
+df<-EXO_PME_raw %>% 
+  #Filter to one site
+  filter(`Site Name`=='ND') %>% 
+  #Create cols of interest
+  mutate(
+    Timestamp=ymd_hms(Date_Time_EST),
+    value = fDOM_QSU,
+    drift_corr = 0) %>% 
+  #Select Cols of interest
+  select(Timestamp,value, drift_corr)
+
+#Define dates of interest
+start<-mdy_hm("9-19-2020 13:30")
+end<-mdy_hm("10-9-2020 12:45")
+cleaned<-mdy_hm("10-9-2020 16:00")
+
+#run function
+temp<-fun(df, start, end, cleaned)
+
+#Plot
+plot(df$Timestamp, df$value, type="l", xlab="Timestamp", ylab="Value")
+points(temp$Timestamp, temp$value, type="l", col="red")
+
+#Replace values in master df
+df<-bind_rows(df, temp) %>% 
+  group_by(Timestamp) %>% 
+  slice_max(drift_corr, n=1) 
 
 
 ```

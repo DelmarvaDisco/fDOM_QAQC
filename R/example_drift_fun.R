@@ -50,35 +50,3 @@ fun <- function(df, #Dataframe with data and data cols
   #Export drift correct df
   df
 }
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Apply function ---------------------------------------------------------------
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#Prep dataframe
-df<-EXO_PME_raw %>% 
-  #Filter to one site
-  filter(`Site Name`=='ND') %>% 
-  #Create cols of interest
-  mutate(
-    Timestamp=ymd_hms(Date_Time_EST),
-    value = fDOM_QSU,
-    drift_corr = 0) %>% 
-  #Select Cols of interest
-  select(Timestamp,value, drift_corr)
-
-#Define dates of interest
-start<-mdy_hm("9-19-2020 13:30")
-end<-mdy_hm("10-9-2020 12:45")
-cleaned<-mdy_hm("10-9-2020 16:00")
-
-#run function
-temp<-fun(df, start, end, cleaned)
-
-#Plot
-plot(df$Timestamp, df$value, type="l", xlab="Timestamp", ylab="Value")
-points(temp$Timestamp, temp$value, type="l", col="red")
-
-#Replace values in master df
-df<-bind_rows(df, temp) %>% 
-  group_by(Timestamp) %>% 
-  slice_max(drift_corr, n=1) 
