@@ -13,6 +13,8 @@ I didn't show this chunk for brevity's sake, but I used the following packages:
 tidyverse, lubridate, zoo, xts, dygraphs, htmlwidgets, rmarkdown
 ```{r include=FALSE}
 
+data_dir <- "C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC_IDK/Data_Raw"
+
 library("tidyverse")
 library("lubridate")
 library("zoo")
@@ -20,7 +22,7 @@ library("xts")
 library("dygraphs")
 library("htmlwidgets")
 library("rmarkdown")
-#Github is broken
+
 ```
 
 ## 2 Organize the EXO Files
@@ -44,7 +46,6 @@ I combine all the files using rbind.
 
 ```{r include=FALSE}
 
-setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC_DD")
 
 
 # DK SW from Sept 6 to Sept 19
