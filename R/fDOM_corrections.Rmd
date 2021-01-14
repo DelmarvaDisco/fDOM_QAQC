@@ -49,7 +49,7 @@ I combine all the files using rbind.
 
 
 # DK SW from Sept 6 to Sept 19
-DK_SW_EXO_20200919_raw <- read_csv("Data_Raw/DK_SW_fDOM_20200919_no_head.csv") %>% 
+DK_SW_EXO_20200919_raw <- read_csv(paste0(data_dir,"/DK_SW_fDOM_20200919_no_head.csv")) %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
          "Time" = `Time (HH:mm:ss)`, 
          "fDOM_QSU" = `fDOM QSU`, 
@@ -59,7 +59,7 @@ DK_SW_EXO_20200919_raw <- read_csv("Data_Raw/DK_SW_fDOM_20200919_no_head.csv") %
   select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
 
 # DK SW from Sept 19 to Oct 26
-DK_SW_EXO_20201026_raw <- read_csv("Data_Raw/DK_SW_fDOM_20201026_no_head.csv") %>% 
+DK_SW_EXO_20201026_raw <- read_csv(paste0(data_dir,"/DK_SW_fDOM_20201026_no_head.csv")) %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
          "Time" = `Time (HH:mm:ss)`, 
          "fDOM_QSU" = `fDOM QSU`, 
@@ -69,7 +69,7 @@ DK_SW_EXO_20201026_raw <- read_csv("Data_Raw/DK_SW_fDOM_20201026_no_head.csv") %
   select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
 
 #ND from Sep 6th through Sep 19th
-ND_SW_EXO_20200919_raw <- read_csv("Data_Raw/ND_SW_fDOM_20200919_no_head.csv") %>% 
+ND_SW_EXO_20200919_raw <- read_csv(paste0(data_dir,"/ND_SW_fDOM_20200919_no_head.csv")) %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
          "Time" = `Time (HH:mm:ss)`, 
          "fDOM_QSU" = `fDOM QSU`, 
@@ -79,7 +79,7 @@ ND_SW_EXO_20200919_raw <- read_csv("Data_Raw/ND_SW_fDOM_20200919_no_head.csv") %
   select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
 
 #ND from Sep 19th to October 9th 
-ND_SW_EXO_20201009_raw <- read_csv("Data_Raw/ND_SW_fDOM_20201009_no_head.csv") %>% 
+ND_SW_EXO_20201009_raw <- read_csv(paste0(data_dir,"/ND_SW_fDOM_20201009_no_head.csv")) %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
          "Time" = `Time (HH:mm:ss)`, 
          "fDOM_QSU" = `fDOM QSU`, 
@@ -89,7 +89,7 @@ ND_SW_EXO_20201009_raw <- read_csv("Data_Raw/ND_SW_fDOM_20201009_no_head.csv") %
   select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
 
 #ND from October 9th to October 26th
-ND_SW_EXO_20201026_raw <- read_csv("Data_Raw/ND_SW_fDOM_20201026_no_head.csv") %>% 
+ND_SW_EXO_20201026_raw <- read_csv(paste0(data_dir,"/ND_SW_fDOM_20201026_no_head.csv")) %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
          "Time" = `Time (HH:mm:ss)`, 
          "fDOM_QSU" = `fDOM QSU`, 
@@ -138,9 +138,9 @@ For the 300 ppb standard, the formula from linear regression is:
 
 ```{r}
 
-setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC_DD")
+
 #Read the table
-(Temp_QSU_slope <- read_csv("YSI_Temp_QSU_corr.csv")) 
+(Temp_QSU_slope <- read_csv(paste0(data_dir,"/YSI_Temp_QSU_corr.csv"))) 
 
 #Plot the the points
 (Temp_QSU_plot <- ggplot(data = Temp_QSU_slope, 
@@ -165,10 +165,8 @@ Once again, I read the files in individually, because I feel like it grants more
 ```{r include=FALSE}
 #Read the PME file and select the columns
 
-setwd("C:/Users/James Maze/Desktop/Delmarva/Github/fDOM_QAQC_DD")
-
 # DK SW from Sep 6 to Sep 19
-DK_SW_PME_20200919_trimmed <- read_delim("Data_Raw/DK_SW_PME_20200906_20200919.txt",
+DK_SW_PME_20200919_trimmed <- read_delim(paste0(data_dir,"/DK_SW_PME_20200906_20200919.txt"),
                              delim = ",",
                              skip = 9, 
                              col_names = FALSE) %>% 
@@ -177,7 +175,7 @@ DK_SW_PME_20200919_trimmed <- read_delim("Data_Raw/DK_SW_PME_20200906_20200919.t
   add_column("Site Name" = "DK")
 
 #DK SW from Sep 19 to Oct 26
-DK_SW_PME_20201026_trimmed <- read_delim("Data_Raw/DK_SW_PME_20200919_20201026.txt",
+DK_SW_PME_20201026_trimmed <- read_delim(paste0(data_dir,"/DK_SW_PME_20200919_20201026.txt"),
                              delim = ",",
                              skip = 9, 
                              col_names = FALSE) %>% 
@@ -186,7 +184,7 @@ DK_SW_PME_20201026_trimmed <- read_delim("Data_Raw/DK_SW_PME_20200919_20201026.t
   add_column("Site Name" = "DK")
 
 #ND SW from Sep 6 to Sep 19
-ND_SW_PME_20200919_trimmed <- read_delim("Data_Raw/ND_SW_PME_20200906_20200919.txt",
+ND_SW_PME_20200919_trimmed <- read_delim(paste0(data_dir,"/ND_SW_PME_20200906_20200919.txt"),
                              delim = ",",
                              skip = 9, 
                              col_names = FALSE) %>% 
@@ -202,7 +200,7 @@ ND_SW_PME_20200919_trimmed <- read_delim("Data_Raw/ND_SW_PME_20200906_20200919.t
 
 
 #ND SW from Sep 19 to Oct 26
-ND_SW_PME_20201026_trimmed <- read_delim("Data_Raw/ND_SW_PME_20200919_20201026.txt",
+ND_SW_PME_20201026_trimmed <- read_delim(paste0(data_dir,"/ND_SW_PME_20200919_20201026.txt"),
                              delim = ",",
                              skip = 9, 
                              col_names = FALSE) %>% 
@@ -345,42 +343,6 @@ Total fouling = QSU Post Clean - QSU Pre Clean.
 ```{r}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#Just trying to see if it works, but the math and timestamps has gotten really hard...
-
-#The difference between pre and post wiping September 19th
-#total_fouling <- 107.02 - 84.13
-
-#The total fouling correction. Total fouling divided by the pre wipe value. This is the proportional error caused by fouling throughout the deployment. 
-#total_fouling_proportional <- (total_fouling/84.13)
-
-#The fouling correction factor (fouling/min) divided by the elapsed time in minutes from September 12th at 12:00 pm to September 19th at 1:30 pm.(fouling appears to show up on Sept 12th). 
-
-#fouling_rate_min <- (total_fouling_proportional/10170)
-
-#Add a column for the correction factor (CF) for each measurement. At t = 0 on Sept 12th, the correction coefficient = 1. At t = 10170 on September 19th, the correction coefficient = 1.2720789. 
-# No clue how to do this in R, but this is the general idea. Will probably be easiest to do this with Unix timestamps????
-
-#fDOM_temp_foul_corr <- fDOM_Temp_corr %>% 
-  #mutate("CF" = ((Date_Time_EST - "2020-09-12 12:00")) * fouling_rate_min + 1) %>% 
-#Lastly, the corrected data will be...
-  #mutate("QSU_temp_fouling_corr" = QSU_temp_corrected * CF)
-
-#The most difficult aspect of this will be automating, this piece-wise approach to data QAQC...
 
 ```
 
