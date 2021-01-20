@@ -402,7 +402,8 @@ ggplot(data = df,
        mapping = aes(x = Timestamp,
                      y = value,
                      color = anomalous_corr)) +
-  geom_line()
+  geom_line() +
+  theme_bw()
 
 
 

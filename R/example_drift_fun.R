@@ -8,7 +8,7 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Function ----------------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-fun <- function(df, #Dataframe with data and data cols 
+fun_drift <- function(df, #Dataframe with data and data cols 
               start, #Date and time when to start linear correction
               end, #Date and time when end linear correction
               cleaned #Date and time when the sensor was cleaned
