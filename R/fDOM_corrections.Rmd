@@ -3,7 +3,7 @@ title: "fDOM data correction examples"
 author: "James Maze"
 date: "12/14/2020"
 output: html_document
-Example data sets used: ND-SW from 9/6 to 10/29 and DK SW from 9/6 to 10/29
+Example data sets used: ND-SW from 9/6 to 10/26
 ---
 
 ## 1. Load packages and working directory
@@ -46,26 +46,6 @@ I combine all the files using rbind.
 
 ```{r include=FALSE}
 
-# DK SW from Sept 6 to Sept 19
-DK_SW_EXO_20200919_raw <- read_csv(paste0(data_dir,"/DK_SW_fDOM_20200919_no_head.csv")) %>% 
-  rename("Date" = `Date (MM/DD/YYYY)`, 
-         "Time" = `Time (HH:mm:ss)`, 
-         "fDOM_QSU" = `fDOM QSU`, 
-         "Turb_FNU" = `Turbidity FNU`,
-         "Batt_V" = `Battery V`) %>% 
-  add_column(Flag = 0) %>% 
-  select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
-
-# DK SW from Sept 19 to Oct 26
-DK_SW_EXO_20201026_raw <- read_csv(paste0(data_dir,"/DK_SW_fDOM_20201026_no_head.csv")) %>% 
-  rename("Date" = `Date (MM/DD/YYYY)`, 
-         "Time" = `Time (HH:mm:ss)`, 
-         "fDOM_QSU" = `fDOM QSU`, 
-         "Turb_FNU" = `Turbidity FNU`,
-         "Batt_V" = `Battery V`) %>% 
-  add_column(Flag = 0) %>% 
-  select(c(Date, Time, fDOM_QSU, Turb_FNU, Batt_V, Flag, `Site Name`))
-
 #ND from Sep 6th through Sep 19th
 ND_SW_EXO_20200919_raw <- read_csv(paste0(data_dir,"/ND_SW_fDOM_20200919_no_head.csv")) %>% 
   rename("Date" = `Date (MM/DD/YYYY)`, 
@@ -98,27 +78,26 @@ ND_SW_EXO_20201026_raw <- read_csv(paste0(data_dir,"/ND_SW_fDOM_20201026_no_head
 
 
 # Combine all of the files
-EXO_raw <- rbind(DK_SW_EXO_20200919_raw, DK_SW_EXO_20201026_raw, ND_SW_EXO_20201009_raw, ND_SW_EXO_20200919_raw, ND_SW_EXO_20201026_raw)
+EXO_raw <- rbind(ND_SW_EXO_20201009_raw, ND_SW_EXO_20200919_raw, ND_SW_EXO_20201026_raw)
 
-#Remove the individual files after data is binded
-rm(DK_SW_EXO_20200919_raw, DK_SW_EXO_20201026_raw, ND_SW_EXO_20201009_raw, ND_SW_EXO_20200919_raw, ND_SW_EXO_20201026_raw)
+#Remove the individual files from the environment after data is binded
+rm(ND_SW_EXO_20201009_raw, ND_SW_EXO_20200919_raw, ND_SW_EXO_20201026_raw)
 
 ```
 
 #### 2.2 Convert the timestamp on the EXO files
 
-In this chunk, I paste the Date and Time columns into a single column. Then I change the format to a POSIXct. Lastly, I filter out the QSU values less than 20. 
+In this chunk, I paste the Date and Time columns into a single column. Then I change the format to a POSIXct. Lastly, I filter out the negative QSU values.
 
 ```{r}
-EXO_raw_timestamped <- EXO_raw %>% 
+EXO_raw <- EXO_raw %>% 
   mutate(Date_Time_EST = paste(Date, Time)) %>%
   mutate(Date_Time_EST = mdy_hms(Date_Time_EST, 
                                  tz = "US/Eastern")) %>% 
   #Filtering out the wackiest values before hand
   filter(fDOM_QSU > 0) 
 
-head(EXO_raw_timestamped)
-rm(EXO_raw)
+head(EXO_raw)
 
 ```
 ## 3. Temperature Correction 
@@ -135,7 +114,6 @@ For the 300 ppb standard, the formula from linear regression is:
 
 
 ```{r}
-
 
 #Read the table
 (Temp_QSU_slope <- read_csv(paste0(data_dir,"/YSI_Temp_QSU_corr.csv"))) 
@@ -156,30 +134,12 @@ summary(Temp_QSU_linear_reg)
 
 #### 3.2 Read in the co-located temperature sensors (From PME miniDOTs)
 
-Not very smooth, but it gets the job done. Since the PME file has a row of units below the column name, its easier to slice and rename in R. Like the EXO files, I need to smooth alot of wrinkles. For the purpose of fDOM corrections, I only keep the time (Date time) and temperature (double) column. 
+Not very smooth, but it gets the job done. Since the PME file has a row of units below the column name, its easier to slice and rename. Like the EXO files, I need to write a proper function for reading in data. For the purpose of fDOM corrections, I only keep the time (Date time) and temperature (double) column. 
 
 Once again, I read the files in individually, because I feel like it grants more flexibility, while I test different things out. 
 
 ```{r include=FALSE}
 #Read the PME file and select the columns
-
-# DK SW from Sep 6 to Sep 19
-DK_SW_PME_20200919_trimmed <- read_delim(paste0(data_dir,"/DK_SW_PME_20200906_20200919.txt"),
-                             delim = ",",
-                             skip = 9, 
-                             col_names = FALSE) %>% 
-  select(c(X3, X5)) %>% 
-  rename(Date_Time_EST = X3, Temp_C = X5) %>% 
-  add_column("Site Name" = "DK")
-
-#DK SW from Sep 19 to Oct 26
-DK_SW_PME_20201026_trimmed <- read_delim(paste0(data_dir,"/DK_SW_PME_20200919_20201026.txt"),
-                             delim = ",",
-                             skip = 9, 
-                             col_names = FALSE) %>% 
-  select(c(X3, X5)) %>% 
-  rename(Date_Time_EST = X3, Temp_C = X5) %>% 
-  add_column("Site Name" = "DK")
 
 #ND SW from Sep 6 to Sep 19
 ND_SW_PME_20200919_trimmed <- read_delim(paste0(data_dir,"/ND_SW_PME_20200906_20200919.txt"),
@@ -203,7 +163,7 @@ ND_SW_PME_20201026_trimmed <- read_delim(paste0(data_dir,"/ND_SW_PME_20200919_20
 
 
 #Merge the PME files
-PME_ready <- rbind(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed) %>% 
+PME_ready <- rbind(ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed) %>% 
 #Converts the Temp_C column to numeric and the Date to POSIXCT.
   mutate("Temp_C" = as.numeric(Temp_C),
          "Date_Time_EST" = ymd_hms(Date_Time_EST, 
@@ -211,7 +171,7 @@ PME_ready <- rbind(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW
 
 head(PME_ready)
 
-rm(DK_SW_PME_20200919_trimmed, DK_SW_PME_20201026_trimmed, ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed)
+rm(ND_SW_PME_20200919_trimmed, ND_SW_PME_20201026_trimmed)
 
 ```
 
@@ -226,19 +186,12 @@ PME_ready <- PME_ready %>%
 
 #Used an inner join by timestamp and Site Name
 EXO_PME_raw <- inner_join(PME_ready, 
-                          EXO_raw_timestamped, 
+                          EXO_raw, 
                           by = c("Date_Time_EST", "Site Name"))
 
 #Plot temperature at the different sites to make sure the join worked properly. 
-(ggplot(data = EXO_PME_raw,
-        mapping = aes(x = Date_Time_EST, 
-                      y = Temp_C,
-                      color = `Site Name`))+
-    geom_line() +
-    theme_bw())
-
 head(EXO_PME_raw)
-rm(PME_ready, PME_trimmed, EXO_raw_timestamped)
+rm(PME_ready, EXO_raw)
 
 ```
 
@@ -274,49 +227,26 @@ Since there was a 300 ppb standard, QSU Actual = 300, which we can plug in.
 
 The following chunk of code runs the math generating two new columns for the Temp % Error and the temperature corrected fDOM
 ```{r include=FALSE}
-m <- -1.364161
+# Prep the dataframe for temp function 
+df<-EXO_PME_raw %>% 
+  #Create cols of interest
+  mutate("Timestamp" = ymd_hms(Date_Time_EST),
+         "value" = fDOM_QSU,
+         "temp_corr" = 0) %>% 
+  #Select Cols of interest
+  select(Timestamp, value, temp_corr, Temp_C)
 
-EXO_PME_raw <- EXO_PME_raw %>% 
-  mutate("Temp_%_Error" = m/3 * (Temp_C - 22)) %>% 
-  mutate("QSU_temp_corrected" = fDOM_QSU + (`Temp_%_Error`/100 * fDOM_QSU)) %>% 
-  mutate(temp_corr = 0)
+temp <- fun_temp(df)
 
-head(EXO_PME_raw)
+df <- rbind(temp, df) %>% 
+  mutate("temp_corr" = as.factor(temp_corr))
 
-```
-#### 3.5 Compare the temperature corrected data to the other data. 
-```{r}
-#This code just manipulates the data so that it can be plotted with the dygraph package
-EXO_PME_raw_DK_xts <- EXO_PME_raw %>% 
-  filter(`Site Name` == "DK") %>% 
-  select(fDOM_QSU, QSU_temp_corrected, Date_Time_EST) 
-
-#Change to an xts
-EXO_PME_raw_DK_xts <- EXO_PME_raw_DK_xts %>% 
-  xts(order.by = EXO_PME_raw_DK_xts$Date_Time_EST)
-
-#This code makes the graph
-(dygraph(EXO_PME_raw_DK_xts, 
-         main = "Temp correction at DK",
-         ylab = "fDOM (QSU)") %>%
-   dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
-   dyRangeSelector())
-
-#This code just manipulates the data so that it can be plotted with the dygraph package
-EXO_PME_raw_ND_xts <- EXO_PME_raw %>% 
-  filter(`Site Name` == "ND") %>% 
-  select(fDOM_QSU, QSU_temp_corrected, Date_Time_EST) 
-
-#Change to an xts
-EXO_PME_raw_ND_xts <- EXO_PME_raw_ND_xts %>% 
-  xts(order.by = EXO_PME_raw_ND_xts$Date_Time_EST)
-
-#This code makes the graph
-(dygraph(EXO_PME_raw_ND_xts, 
-         main = "Temp correction at ND",
-         ylab = "fDOM (QSU)") %>%
-   dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
-   dyRangeSelector())
+(ggplot(data = df,
+       mapping = aes(x = Timestamp, 
+                     y = value,
+                     color = temp_corr)) +
+  geom_line() +
+  theme_bw())
 
 ```
 
@@ -340,11 +270,9 @@ Fouling Correction(t) = Fouling Rate * t
 
 # Prep the dataframe for drift function 
 df<-EXO_PME_raw %>% 
-  #Filter to one site
-  filter(`Site Name`=='ND') %>% 
   #Create cols of interest
   mutate(
-    Timestamp=ymd_hms(Date_Time_EST),
+    Timestamp = ymd_hms(Date_Time_EST),
     value = QSU_temp_corrected,
     drift_corr = 0) %>% 
   #Select Cols of interest
@@ -356,22 +284,20 @@ end<-mdy_hm("10-9-2020 12:45")
 cleaned<-mdy_hm("10-9-2020 16:00")
 
 #run function
-temp<-fun(df, start, end, cleaned)
+drift<-fun_drift(df, start, end, cleaned)
 
-#Plot
-plot(df$Timestamp, df$value, type="l", xlab="Timestamp", ylab="Value") 
-points(temp$Timestamp, temp$value, type="l", col="red")
 
 #Replace values in master df
-df<-bind_rows(df, temp) #%>% 
-  group_by(Timestamp) #%>% 
-  slice_max(drift_corr, n=1) 
+df<-bind_rows(df, drift) %>% 
+  mutate("drift_corr" = as.factor(drift_corr))
+ 
 
 (ggplot(data = df,
        mapping = aes(x = Timestamp, 
                      y = value,
                      color = drift_corr)) +
-  geom_point())
+  geom_line() +
+  theme_bw())
 
 ```
 
@@ -382,10 +308,9 @@ Could be another option for dampening noise.
 
 #Prep the data for the anomaly function
 df <- EXO_PME_raw %>% 
-  filter(`Site Name` == "DK") %>% 
   mutate("value" = as.numeric(QSU_temp_corrected), 
          "Timestamp" = Date_Time_EST) %>% 
-  select(value, Timestamp) %>% 
+  select(value, Timestamp, `Site Name`) %>% 
   mutate(anomalous_corr = 0)
 
 #Set thresholds for values to deviate from the rolling median
@@ -393,9 +318,9 @@ min <- -5
 max <- 5
 
 #run the function
-temp <- fun_anomalous(df, min, max)
+anomaly <- fun_anomalous(df, min, max)
 
-df <- bind_rows(temp, df) %>% 
+df <- bind_rows(anomaly, df) %>% 
   mutate("anomalous_corr" = as.factor(anomalous_corr))
 
 ggplot(data = df,
@@ -404,8 +329,6 @@ ggplot(data = df,
                      color = anomalous_corr)) +
   geom_line() +
   theme_bw()
-
-
 
 ```
 
