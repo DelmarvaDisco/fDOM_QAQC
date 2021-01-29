@@ -97,7 +97,6 @@ EXO_raw <- EXO_raw %>%
   #Filtering out the wackiest values before hand
   filter(fDOM_QSU > 0) 
 
-head(EXO_raw)
 
 ```
 ## 3. Temperature Correction 
@@ -355,13 +354,13 @@ DK_SW_EXO_roll <- DK_SW_EXO_roll %>%
                                       align = "center"))
 
 # Puts the data in xts format for the dygraphs package             
-DK_SW_EXO_roll <- DK_SW_EXO_roll %>% 
-  select(Date_Time_EST, QSU_temp_corrected, temp_corrected_roll, ) %>% 
-  xts(order.by = DK_SW_EXO_roll$Date_Time_EST)
+#DK_SW_EXO_roll <- DK_SW_EXO_roll %>% 
+  #select(Date_Time_EST, QSU_temp_corrected, temp_corrected_roll, ) %>% 
+  #xts(order.by = DK_SW_EXO_roll$Date_Time_EST)
 
-(dygraph(DK_SW_EXO_roll, main = "Comparing rolling average to raw fDOM at DK SW") %>% 
-  dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
-  dyRangeSelector())
+#(dygraph(DK_SW_EXO_roll, main = "Comparing rolling average to raw fDOM at DK SW") %>% 
+ # dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
+ # dyRangeSelector())
 
 
 ```
