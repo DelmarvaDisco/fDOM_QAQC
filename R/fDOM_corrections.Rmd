@@ -122,7 +122,7 @@ For the 300 ppb standard, the formula from linear regression is:
 (Temp_QSU_plot <- ggplot(data = Temp_QSU_slope, 
         mapping = aes(x = Deg_C, 
                       y = fDOM_QSU)) +
-    geom_point() +
+    geom_point(size = 5) +
     theme_bw() +
     labs(title = "QSU and Temperature (Standard = 300 ppb @ 22C)"))
 
@@ -228,29 +228,65 @@ Since there was a 300 ppb standard, QSU Actual = 300, which we can plug in.
 The following chunk of code runs the math generating two new columns for the Temp % Error and the temperature corrected fDOM
 ```{r include=FALSE}
 # Prep the dataframe for temp function 
-df<-EXO_PME_raw %>% 
+df <- EXO_PME_raw %>% 
   #Create cols of interest
   mutate("Timestamp" = ymd_hms(Date_Time_EST),
          "value" = fDOM_QSU,
-         "temp_corr" = 0) %>% 
+         "corr" = 0) %>% 
   #Select Cols of interest
-  select(Timestamp, value, temp_corr, Temp_C)
+  select(Timestamp, value, corr, Temp_C)
+
+m <- -1.364161
 
 temp <- fun_temp(df)
 
 df <- rbind(temp, df) %>% 
-  mutate("temp_corr" = as.factor(temp_corr))
+  mutate("corr" = as.factor(corr))
 
 (ggplot(data = df,
        mapping = aes(x = Timestamp, 
                      y = value,
-                     color = temp_corr)) +
+                     color = corr)) +
   geom_line() +
   theme_bw())
 
 ```
 
-## 4. Fouling Correction
+
+## 4. Using the Anomaly_funtion to remove weird values. 
+
+Could be another option for dampening noise. 
+```{r}
+
+#Prep the data for the anomaly function
+df <- EXO_PME_raw %>% 
+  mutate("value" = as.numeric(fDOM_QSU), 
+         "Timestamp" = Date_Time_EST) %>% 
+  select(value, Timestamp, `Site Name`, corr) 
+  
+
+#Set thresholds for values to deviate from the rolling median
+min <- -5
+max <- 5
+
+#run the function
+anomaly <- fun_anomalous(df, min, max)
+
+df <- bind_rows(anomaly, df) %>% 
+  mutate("anomalous_corr" = as.factor(anomalous_corr))
+
+ggplot(data = df,
+       mapping = aes(x = Timestamp,
+                     y = value,
+                     color = anomalous_corr)) +
+  geom_line() +
+  theme_bw()
+
+```
+
+
+
+## 5. Fouling Correction
 
 For DK-SW, there was not evidence of fouling. The signal was 129.52 QSU at the end of the first deployment (Sep 6th - Sep 19th) and 129.56 QSU at the beginning of the second deployment (Sep 19th - Oct 29th). 
 
@@ -298,37 +334,6 @@ df<-bind_rows(df, drift) %>%
                      color = drift_corr)) +
   geom_line() +
   theme_bw())
-
-```
-
-## 5. Using the Anomaly_funtion to remove weird values. 
-
-Could be another option for dampening noise. 
-```{r}
-
-#Prep the data for the anomaly function
-df <- EXO_PME_raw %>% 
-  mutate("value" = as.numeric(QSU_temp_corrected), 
-         "Timestamp" = Date_Time_EST) %>% 
-  select(value, Timestamp, `Site Name`) %>% 
-  mutate(anomalous_corr = 0)
-
-#Set thresholds for values to deviate from the rolling median
-min <- -5
-max <- 5
-
-#run the function
-anomaly <- fun_anomalous(df, min, max)
-
-df <- bind_rows(anomaly, df) %>% 
-  mutate("anomalous_corr" = as.factor(anomalous_corr))
-
-ggplot(data = df,
-       mapping = aes(x = Timestamp,
-                     y = value,
-                     color = anomalous_corr)) +
-  geom_line() +
-  theme_bw()
 
 ```
 
