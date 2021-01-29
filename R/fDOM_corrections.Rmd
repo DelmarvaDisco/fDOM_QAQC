@@ -258,9 +258,7 @@ Could be another option for dampening noise.
 ```{r}
 
 #Prep the data for the anomaly function
-df <- EXO_PME_raw %>% 
-  mutate("value" = as.numeric(fDOM_QSU), 
-         "Timestamp" = Date_Time_EST) %>% 
+df <- df %>% 
   select(value, Timestamp, `Site Name`, corr) 
   
 

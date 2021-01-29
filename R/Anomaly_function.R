@@ -31,7 +31,7 @@ fun_anomalous <- function(df, #timeseries data with anomalous values
   #Clean up the dataframe
   df <- df %>% 
     select(value, Timestamp) %>% 
-    mutate(anomalous_corr = 1)
+    mutate(corr = 2)
   
   #return the df without anomalous values
   return(df)
