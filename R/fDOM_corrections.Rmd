@@ -231,7 +231,7 @@ df <- EXO_PME_raw %>%
   #Create cols of interest
   mutate("Timestamp" = ymd_hms(Date_Time_EST),
          "value" = fDOM_QSU,
-         "corr" = 0) %>% 
+         "corr" = "raw") %>% 
   #Select Cols of interest
   select(Timestamp, value, corr, Temp_C)
 
@@ -240,7 +240,7 @@ m <- -1.364161
 temp <- fun_temp(df)
 
 df <- rbind(temp, df) %>% 
-  mutate("corr" = as.factor(corr))
+  mutate("corr" = as.character(corr))
 
 (ggplot(data = df,
        mapping = aes(x = Timestamp, 
@@ -259,7 +259,7 @@ Could be another option for dampening noise.
 
 #Prep the data for the anomaly function
 df <- df %>% 
-  select(value, Timestamp, `Site Name`, corr) 
+  select(value, Timestamp, corr) 
   
 
 #Set thresholds for values to deviate from the rolling median
@@ -269,13 +269,15 @@ max <- 5
 #run the function
 anomaly <- fun_anomalous(df, min, max)
 
-df <- bind_rows(anomaly, df) %>% 
-  mutate("anomalous_corr" = as.factor(anomalous_corr))
+df <- bind_rows(anomaly, df) 
 
-ggplot(data = df,
+anomaly_plot <- df %>% 
+  filter(!corr == "temp")
+
+ggplot(data = anomaly_plot,
        mapping = aes(x = Timestamp,
                      y = value,
-                     color = anomalous_corr)) +
+                     color = corr)) +
   geom_line() +
   theme_bw()
 

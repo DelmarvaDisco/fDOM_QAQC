@@ -19,7 +19,7 @@ fun_temp <- function(df #timeseries with fDOM data and co-located temp sensor.
   df <- df %>% 
     mutate("Temp_Error" = m/3 * (Temp_C - 22)) %>% 
     mutate("value" = value + (Temp_Error/100 * value)) %>% 
-    mutate(corr = 1)
+    mutate("corr" = "temp")
   
   #Clean up the dataframe
   df <- df %>% 
