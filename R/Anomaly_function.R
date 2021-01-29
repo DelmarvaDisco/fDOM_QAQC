@@ -2,7 +2,7 @@
 #Title: Anomaly Remover
 #Coder: James Maze (jtmaze@umd.edu)
 #Date: 1/14/21
-#Purpose: To remove unusual/low values from sonde data.
+#Purpose: To remove unusual/low values from fDOM sonde data.
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
