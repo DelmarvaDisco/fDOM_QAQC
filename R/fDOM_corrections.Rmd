@@ -226,6 +226,11 @@ Since there was a 300 ppb standard, QSU Actual = 300, which we can plug in.
 
 The following chunk of code runs the math generating two new columns for the Temp % Error and the temperature corrected fDOM
 ```{r include=FALSE}
+
+#Source the temp function 
+source("Temp_function.R", local = knitr::knit_global())
+
+
 # Prep the dataframe for temp function 
 df <- EXO_PME_raw %>% 
   #Create cols of interest
@@ -257,8 +262,10 @@ df <- rbind(temp, df) %>%
 
 ## 4. Using the Anomaly_funtion to remove weird values. 
 
-Could be another option for dampening noise. 
+ 
 ```{r}
+#Source the anomaly function. 
+source("Anomaly_function.R", local = knitr::knit_global())
 
 #Prep the data for the anomaly function
 anomaly <- df %>% 
@@ -276,12 +283,12 @@ anomaly <- fun_anomalous(anomaly, min, max)
 df <- bind_rows(anomaly, df) 
 
 
-ggplot(data = df,
+(ggplot(data = df,
        mapping = aes(x = Timestamp,
                      y = value,
                      color = corr)) +
   geom_line() +
-  theme_bw()
+  theme_bw())
 
 ```
 
@@ -304,6 +311,9 @@ Fouling Rate = (Total Fouling)/Elapsed Time
 Fouling Correction(t) = Fouling Rate * t
 
 ```{r}
+#Source the drift function
+source("example_drift_fun.R", local = knitr::knit_global())
+
 
 # Prep the dataframe for drift function 
 drift <- df %>% 
@@ -361,7 +371,7 @@ df <- rbind(smooth, df) %>%
 df_wide <- pivot_wider(df, 
                        names_from = corr, 
                        values_from = value) %>% 
-  select(c(Timestamp, final_smooth, raw))
+  select(c(Timestamp, final_smooth, temp_anomalous_drift))
 
 df_xts <- df_wide %>% 
   xts(df_wide, order.by = df_wide$Timestamp)
