@@ -8,7 +8,7 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Function ----------------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-fun_drift <- function(df, #Dataframe with data and data cols 
+fun_drift <- function(drift, #Dataframe with data and data cols 
               start, #Date and time when to start linear correction
               end, #Date and time when end linear correction
               cleaned #Date and time when the sensor was cleaned
@@ -19,13 +19,13 @@ fun_drift <- function(df, #Dataframe with data and data cols
   library(lubridate)
 
   #Estimate fouling rate
-  pre_clean  <- df %>% filter(Timestamp==end) %>% select(value) %>% pull()
-  post_clean <- df %>% filter(Timestamp==cleaned) %>% select(value) %>% pull()
+  pre_clean  <- drift %>% filter(Timestamp==end) %>% select(value) %>% pull()
+  post_clean <- drift %>% filter(Timestamp==cleaned) %>% select(value) %>% pull()
   duration   <- as.numeric(end-start)*24*60 
   f_rate     <- (post_clean-pre_clean)/duration
   
   #Apply linear correction
-  df<-df %>%
+  drift<-drift %>%
     #Filter to time period in question
     filter(
       Timestamp>=start,
@@ -39,14 +39,14 @@ fun_drift <- function(df, #Dataframe with data and data cols
     )
   
   #Clean up data frame
-  df<-df %>% 
+  drift <- drift %>% 
     #Remove "cleaned" value
     filter(Timestamp!=cleaned) %>%
     #Change drift_corr indicator
-    mutate(drift_corr=1) %>% 
+    mutate(corr = "temp_anomalous_drift") %>% 
     #Remove time_min col
     select(-time_min)
     
   #Export drift correct df
-  df
+  return(drift)
 }

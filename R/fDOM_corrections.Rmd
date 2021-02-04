@@ -239,6 +239,9 @@ m <- -1.364161
 
 temp <- fun_temp(df)
 
+df <- df %>% 
+  select(-Temp_C)  
+  
 df <- rbind(temp, df) %>% 
   mutate("corr" = as.character(corr))
 
@@ -258,8 +261,9 @@ Could be another option for dampening noise.
 ```{r}
 
 #Prep the data for the anomaly function
-df <- df %>% 
-  select(value, Timestamp, corr) 
+anomaly <- df %>% 
+  select(value, Timestamp, corr) %>% 
+  filter(corr == "temp")
   
 
 #Set thresholds for values to deviate from the rolling median
@@ -267,14 +271,12 @@ min <- -5
 max <- 5
 
 #run the function
-anomaly <- fun_anomalous(df, min, max)
+anomaly <- fun_anomalous(anomaly, min, max)
 
 df <- bind_rows(anomaly, df) 
 
-anomaly_plot <- df %>% 
-  filter(!corr == "temp")
 
-ggplot(data = anomaly_plot,
+ggplot(data = df,
        mapping = aes(x = Timestamp,
                      y = value,
                      color = corr)) +
@@ -304,33 +306,35 @@ Fouling Correction(t) = Fouling Rate * t
 ```{r}
 
 # Prep the dataframe for drift function 
-df<-EXO_PME_raw %>% 
-  #Create cols of interest
-  mutate(
-    Timestamp = ymd_hms(Date_Time_EST),
-    value = QSU_temp_corrected,
-    drift_corr = 0) %>% 
-  #Select Cols of interest
-  select(Timestamp, value, drift_corr)
+drift <- df %>% 
+  filter(corr == "temp_anomalous")
 
-#Define dates of interest
+#Define dates of interest for the FIRST portion of data
+start<-mdy_hm("9-12-2020 12:00")
+end<-mdy_hm("9-19-2020 13:30")
+cleaned<-mdy_hm("9-19-2020 14:30")
+
+#run function
+drift1 <- fun_drift(drift, start, end, cleaned)
+
+#Define dates of interest for the SECOND portion of data
+
 start<-mdy_hm("9-19-2020 13:30")
 end<-mdy_hm("10-9-2020 12:45")
 cleaned<-mdy_hm("10-9-2020 16:00")
 
-#run function
-drift<-fun_drift(df, start, end, cleaned)
+
+drift2 <- fun_drift(drift, start, end, cleaned)
 
 
 #Replace values in master df
-df<-bind_rows(df, drift) %>% 
-  mutate("drift_corr" = as.factor(drift_corr))
- 
+df<-bind_rows(df, drift1, drift2) %>% 
+  filter(!corr == "temp")
 
 (ggplot(data = df,
        mapping = aes(x = Timestamp, 
                      y = value,
-                     color = drift_corr)) +
+                     color = corr)) +
   geom_line() +
   theme_bw())
 
@@ -343,24 +347,32 @@ df<-bind_rows(df, drift) %>%
 It may be worthwhile dropping, or flagging values that deviate too much from the rolling mean. The process for QAQC could be using the roll mean function, and plotting the residuals. Based on the difference between actual values and roll mean, we could set a threshold to dampen noise. 
 ```{r}
 
-DK_SW_EXO_roll <- EXO_PME_raw %>% 
-  filter(`Site Name` == "DK") 
+smooth <- df %>% 
+  filter(corr == "temp_anomalous_drift") %>% 
+  mutate(value = rollmean(value,
+                          8,
+                          fill = NA,
+                          align = "center")) %>% 
+  mutate(corr = "final_smooth")
 
-#Roll mean function from zoo package
-DK_SW_EXO_roll <- DK_SW_EXO_roll %>% 
-  add_column("temp_corrected_roll" = rollmean(DK_SW_EXO_roll$QSU_temp_corrected, 
-                                      8,
-                                      fill = NA, 
-                                      align = "center"))
+df <- rbind(smooth, df) %>% 
+  mutate("row" = row_number())
 
-# Puts the data in xts format for the dygraphs package             
-#DK_SW_EXO_roll <- DK_SW_EXO_roll %>% 
-  #select(Date_Time_EST, QSU_temp_corrected, temp_corrected_roll, ) %>% 
-  #xts(order.by = DK_SW_EXO_roll$Date_Time_EST)
+df_wide <- pivot_wider(df, 
+                       names_from = corr, 
+                       values_from = value) %>% 
+  select(c(Timestamp, final_smooth, raw))
 
-#(dygraph(DK_SW_EXO_roll, main = "Comparing rolling average to raw fDOM at DK SW") %>% 
- # dyOptions(drawPoints = TRUE, pointSize = 2) %>% 
- # dyRangeSelector())
+df_xts <- df_wide %>% 
+  xts(df_wide, order.by = df_wide$Timestamp)
+
+(dygraph(data = df_xts, main = "Example of fDOM corrections") %>% 
+  dyOptions(drawPoints = TRUE, pointSize = 1, connectSeparatedPoints = TRUE) %>% 
+  dyHighlight(highlightSeriesOpts = list(strokeWidth = 2)) %>% 
+  dyRangeSelector())
+
+
+
 
 
 ```

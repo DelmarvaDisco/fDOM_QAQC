@@ -9,7 +9,7 @@
 #Function ----------------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-fun_anomalous <- function(df, #timeseries data with anomalous values
+fun_anomalous <- function(anomaly, #timeseries data with anomalous values
                 min, #The minimum threshold for residuals from rolling median 
                 max #The maximum threshold for residuals from rolling median
 ){
@@ -18,8 +18,8 @@ fun_anomalous <- function(df, #timeseries data with anomalous values
   library(zoo)
 
   #Check values against the residuals of a rolling median. 
-  df <- df %>% 
-    mutate("rolling_median" = rollmedian(df$value,
+  anomaly <- anomaly %>% 
+    mutate("rolling_median" = rollmedian(anomaly$value,
                                          7, 
                                          fill = NA, 
                                          align = "center")) %>% 
@@ -29,12 +29,12 @@ fun_anomalous <- function(df, #timeseries data with anomalous values
     filter(residuals < max)
   
   #Clean up the dataframe
-  df <- df %>% 
+  anomaly <- anomaly %>% 
     select(value, Timestamp) %>% 
     mutate(corr = "temp_anomalous")
   
   #return the df without anomalous values
-  return(df)
+  return(anomaly)
 }
 
 

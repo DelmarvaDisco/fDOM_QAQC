@@ -23,7 +23,7 @@ fun_temp <- function(df #timeseries with fDOM data and co-located temp sensor.
   
   #Clean up the dataframe
   df <- df %>% 
-    select(c("value", "Timestamp", "corr", "Temp_C")) 
+    select(c("value", "Timestamp", "corr")) 
   
   #return the df without temperature corrected values
   return(df)
