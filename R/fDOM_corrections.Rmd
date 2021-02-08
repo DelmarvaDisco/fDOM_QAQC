@@ -341,7 +341,10 @@ drift2 <- fun_drift(drift, start, end, cleaned)
 df<-bind_rows(df, drift1, drift2) %>% 
   filter(!corr == "temp")
 
-(ggplot(data = df,
+drift_plot <- df %>% 
+  filter(corr == c("temp_anomalous", "temp_anomalous_drift"))
+
+(ggplot(data = drift_plot,
        mapping = aes(x = Timestamp, 
                      y = value,
                      color = corr)) +
