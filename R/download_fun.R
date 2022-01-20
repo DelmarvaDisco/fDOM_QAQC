@@ -8,10 +8,14 @@
 download_fun <- function(file_path){
   #Read files
   temp <- read_csv(paste0(file_path),
-                   col_names = TRUE, 
-                   skip = 1)
+                   skip = 9, 
+                   col_names = FALSE) %>% 
+    as_tibble()
+  
   temp
     
 }
+
+
 
 
